@@ -19,4 +19,5 @@ jobs:
         run: |
           docker build -t ghcr.io/marcodantonio/aptarserver:latest .
           docker push ghcr.io/marcodantonio/aptarserver:latest
+          
 
