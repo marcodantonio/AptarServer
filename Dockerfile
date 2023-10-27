@@ -6,13 +6,10 @@ WORKDIR /app
 
 # Copia i file necessari nell'immagine
 COPY requirements.txt .
-COPY server.py .
-COPY cert.pem .
-COPY key.pem .
 
 # Installa le dipendenze necessarie e rimuovi il pacchetto dopo l'uso per ridurre la dimensione dell'immagine
 RUN apt-get update && \
-    apt-get install -y gcc python3-dev libgl1-mesa-glx && \
+    apt-get install -y gcc python3-dev libgl1-mesa-glx libglib2.0-0 && \
     pip install --no-cache-dir -r requirements.txt && \
     apt-get purge -y gcc python3-dev && \
     apt-get autoremove -y && \
