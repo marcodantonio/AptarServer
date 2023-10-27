@@ -20,6 +20,16 @@ def detect_objects():
     return jsonify({'message': 'Image received successfully!'})
 
 if __name__ == '__main__':
-    app.run(debug=(os.environ.get('FLASK_DEBUG'), 'False'), host=os.environ.get('FLASK_HOST', '0.0.0.0'), port=int(os.environ.get(
-        'FLASK_PORT', 5000)), ssl_context=(os.environ.get('SSL_CERT', 'cert.pem'), os.environ.get('SSL_KEY', 'key.pem')))
+    ssl_cert = os.environ.get('SSL_CERT')
+    ssl_key = os.environ.get('SSL_KEY')
+
+    if ssl_cert and ssl_key:
+        ssl_context = (ssl_cert, ssl_key)
+    else:
+        ssl_context = None
+
+    app.run(debug=os.environ.get('FLASK_DEBUG', 'False'),
+            host=os.environ.get('FLASK_HOST', '0.0.0.0'),
+            port=int(os.environ.get('FLASK_PORT', 5000)),
+            ssl_context=ssl_context)
 

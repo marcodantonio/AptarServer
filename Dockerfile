@@ -9,7 +9,6 @@ COPY requirements.txt .
 COPY server.py .
 COPY cert.pem .
 COPY key.pem .
-COPY .env .
 
 # Installa le dipendenze
 RUN pip install --no-cache-dir -r requirements.txt
