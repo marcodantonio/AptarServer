@@ -1,3 +1,5 @@
+FROM --platform=linux/amd64 ubuntu:latest
+
 # Usa l'immagine base di Python 3.11
 FROM python:3.11-slim
 
