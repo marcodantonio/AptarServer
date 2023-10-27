@@ -13,7 +13,6 @@ COPY key.pem .
 # Installa le dipendenze necessarie e rimuovi il pacchetto dopo l'uso per ridurre la dimensione dell'immagine
 RUN apt-get update && \
     apt-get install -y gcc python3-dev libgl1-mesa-glx && \
-    docker exec -it nome_container /bin/bash
     pip install --no-cache-dir -r requirements.txt && \
     apt-get purge -y gcc python3-dev && \
     apt-get autoremove -y && \
