@@ -1,5 +1,5 @@
 # Usa l'immagine base di Python 3.11 specificando la piattaforma
-FROM --platform=linux/amd64 python:3.11-slim
+FROM python:3.11-slim-buster
 
 # Imposta la directory di lavoro
 WORKDIR /app
