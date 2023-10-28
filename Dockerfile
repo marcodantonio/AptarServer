@@ -6,6 +6,7 @@ WORKDIR /home/AptarServer
 
 # Copia i file necessari nell'immagine
 COPY requirements.txt .
+COPY server.py .
 
 # Installa le dipendenze necessarie e rimuovi il pacchetto dopo l'uso per ridurre la dimensione dell'immagine
 RUN apt-get update && \
