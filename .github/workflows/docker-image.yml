@@ -3,11 +3,11 @@ name: Publish Docker Image
 on:
   push:
     branches: 
-      - main
+      - build-branch
 
 jobs:
-  push_to_registry:
-    name: Push Docker image to GitHub Container Registry
+  build_image:
+    name: Build Docker image
     runs-on: ubuntu-latest
     steps:
     - name: Check out the repo

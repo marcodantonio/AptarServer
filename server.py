@@ -23,8 +23,24 @@ from ultralytics import YOLO
 from dotenv import load_dotenv
 from flask import Flask, request, jsonify
 
-# Carica le variabili di configurazione dal file .env
-load_dotenv()
+# Verifica se l'applicazione sta girando all'interno di un container Docker
+def running_in_docker():
+    # Verifica l'esistenza del file .dockerenv
+    if os.path.exists('/.dockerenv'):
+        return True
+
+    # Controlla il file /proc/1/cgroup
+    try:
+        with open('/proc/1/cgroup', 'rt') as ifh:
+            return 'docker' in ifh.read()
+    except FileNotFoundError:
+        pass
+
+    return False
+
+if not running_in_docker():
+    from dotenv import load_dotenv
+    load_dotenv()
 
 app = Flask(__name__)
 CORS(app)
