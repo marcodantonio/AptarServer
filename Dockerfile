@@ -1,5 +1,5 @@
 # Usa l'immagine base di Python 3.12 specificando la piattaforma
-FROM python:3.12-slim-bookworm
+FROM python:3.11-slim-buster
 
 # Imposta la directory di lavoro
 WORKDIR /home/AptarServer
