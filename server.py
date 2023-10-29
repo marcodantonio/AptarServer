@@ -8,18 +8,17 @@
 ##################################################################################################################################
 
 # Import
-import io
 import os
 import cv2
-import sys
 import json
+import uuid
 import torch
 import logging
 import numpy as np
 import supervision as sv
-from PIL import Image
 from flask_cors import CORS
 from ultralytics import YOLO
+from datetime import datetime
 from dotenv import load_dotenv
 from flask import Flask, request, jsonify
 
@@ -172,6 +171,8 @@ class ObjectDetection:
 
     def save_results(self, frame, xyxys, confidences, class_ids, output_file, output_extension):
         # Verifica se ci sono rilevamenti (match) in uno qualsiasi degli elenchi xyxys
+        app.logger.info(f"xyxys contiene: {xyxys}")
+
         if any(len(x) > 0 for x in xyxys):
             # Ci sono rilevamenti (match)
             output_directory = os.path.join(os.getenv("DIRECTORY_OUTPUT"), "matched images")
@@ -310,7 +311,11 @@ def detect_objects():
 
     image = request.files['image'].read()
 
-    detector = ObjectDetection(source=None, output_dir=os.getenv("DIRECTORY_OUTPUT"))  # Assumiamo che la sorgente sia None perché stiamo elaborando immagini da una richiesta
+    # Genera un nome file univoco basato su timestamp e UUID
+    current_timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    unique_filename = f"image_{current_timestamp}_{uuid.uuid4().hex}.jpg"
+
+    detector = ObjectDetection(source=unique_filename, output_dir=os.getenv("DIRECTORY_OUTPUT"))
 
     response_data = detector.process_image_from_request(image)
 
