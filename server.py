@@ -204,7 +204,7 @@ class ObjectDetection:
 
 ##################################################################################################################################
 ##                                                                                                                              ##
-##                                                          CHIAMATA POST                                                       ##
+##                                                          CHIAMATE POST                                                       ##
 ##                                                                                                                              ##
 ##################################################################################################################################
 
@@ -229,6 +229,36 @@ def detect_objects():
     except Exception as e:
         app.logger.error(f"Errore generico: {e}")
         return jsonify({'error': 'Si è verificato un errore durante l\'elaborazione dell\'immagine'}), 500
+
+
+@app.route('/user_response', methods=['POST'])
+def user_response():
+    try:
+        data = request.get_json()
+        if not data:
+            raise ValueError('Nessun dato ricevuto')
+
+        unique_filename = data.get('unique_filename')
+        user_response = data.get('user_response')
+
+        if not unique_filename:
+            raise ValueError('No unique_filename provided')
+        if user_response not in ['yes', 'no']:
+            raise ValueError("user_response deve essere 'yes' o 'no'")
+
+        # Qui puoi aggiungere la logica per processare la risposta dell'utente,
+        # come salvare la risposta nel database o eseguire altre azioni.
+
+        # Esempio: print("Risposta ricevuta:", unique_filename, user_response)
+
+        return jsonify({'message': 'Risposta ricevuta con successo'}), 200
+
+    except ValueError as e:
+        app.logger.warning(f"Errore di valore: {e}")
+        return jsonify({'error': str(e)}), 400
+    except Exception as e:
+        app.logger.error(f"Errore generico: {e}")
+        return jsonify({'error': 'Si è verificato un errore durante la ricezione della risposta'}), 500
 
 
 ##################################################################################################################################
