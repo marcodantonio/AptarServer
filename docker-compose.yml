@@ -5,12 +5,11 @@ services:
     image: ghcr.io/marcodantonio/aptarserver:latest
     container_name: aptarserver
     volumes:
-      - ${CONFIGDIR}/aptar/:/home/AptarServer
+      - ${CONFIGDIR}/aptar/:/home/server
     ports:
       - 5000:5000                   # Porta da aprire
     environment:
       - YOLO_MODEL=Aptar-YoloV8.pt  # Modello da usare
-      - DIRECTORY_OUTPUT=output     # Cartella di output
       - FLASK_DEBUG=False           # Debug
       - FLASK_HOST=0.0.0.0          # Indirizzo IP del server Flask
       - FLASK_PORT=5000             # Porta del server Flask

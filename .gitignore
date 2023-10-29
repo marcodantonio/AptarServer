@@ -1,5 +1,6 @@
 .Ds_Store
 .idea
+ssl/
 __pycache__/
 
 # User-specific stuff

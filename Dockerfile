@@ -2,11 +2,26 @@
 FROM python:3.11-slim-buster
 
 # Imposta la directory di lavoro
-WORKDIR /home/AptarServer
+WORKDIR /home/server
+
+# Crea la directory "output" nella directory radice del container
+RUN mkdir /output
+
+# Crea altre sottocartelle all'interno della directory "output"
+RUN mkdir /output/matched_images
+RUN mkdir /output/matched_images_with_boxes
+RUN mkdir /output/matched_labels
+RUN mkdir /output/matched_labelstudio
+RUN mkdir /output/unmatched_images
+
+# Crea le altre cartelle
+RUN mkdir /ssl
+RUN mkdir /models
 
 # Copia i file necessari nell'immagine
 COPY requirements.txt .
 COPY server.py .
+COPY models/YoloV8m.pt models
 
 # Installa le dipendenze necessarie e rimuovi il pacchetto dopo l'uso per ridurre la dimensione dell'immagine
 RUN apt-get update && \
