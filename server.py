@@ -28,6 +28,7 @@ import os
 import cv2
 import json
 import torch
+import shutil
 import logging
 import numpy as np
 from flask_cors import CORS
@@ -63,6 +64,65 @@ def plot_bboxes(results):
     return results[0].plot(), xyxys, confidences, class_ids
 
 
+##################################################################################################################################
+##                                                                                                                              ##
+##                                                      ESTRAZIONE RISULTATI                                                    ##
+##                                                                                                                              ##
+##################################################################################################################################
+
+def move_files(unique_filename, source, dest):
+    # Estrai il nome del file senza estensione
+    file_name_without_extension, _ = os.path.splitext(unique_filename)
+
+    # Liste delle sottocartelle e delle loro corrispondenti estensioni
+    subfolders_extensions = {'matched_images': '.jpg', 'matched_images_with_boxes': '.jpg', 'matched_labels': '.txt',
+                             'matched_labelstudio': '.json'}
+
+    for subfolder, extension in subfolders_extensions.items():
+        # Percorso completo sorgente e destinazione
+        source_file = file_name_without_extension + extension
+        dest_file = source_file
+
+        source_path = os.path.join(source, subfolder, source_file)
+        dest_path = os.path.join(dest, subfolder, dest_file)
+
+        # Verifica se il file esiste e, in caso affermativo, spostalo
+        if os.path.exists(source_path):
+            os.makedirs(os.path.dirname(dest_path), exist_ok=True)  # Crea la cartella di destinazione se non esiste
+            shutil.move(source_path, dest_path)
+        else:
+            app.logger.error(f"File non trovato: {source_path}")
+
+
+def update_label(unique_filename, new_class_id):
+    base_path = 'output/matched_labels'
+    file_name, _ = os.path.splitext(unique_filename)  # Rimuovi l'estensione esistente
+    txt_file_path = os.path.join(base_path, f"{file_name}.txt")
+
+    try:
+        # Leggi il contenuto del file
+        with open(txt_file_path, 'r') as file:
+            lines = file.readlines()
+
+        # Assicurati che ci sia almeno una linea da modificare
+        if not lines:
+            raise ValueError("Il file è vuoto o non contiene dati validi.")
+
+        # Sostituisci il primo valore (ID di classe) con il nuovo class_id
+        lines[0] = f"{new_class_id} " + " ".join(lines[0].split(" ")[1:])
+
+        # Scrivi le modifiche sul file
+        with open(txt_file_path, 'w') as file:
+            file.writelines(lines)
+
+        print(f"Class ID aggiornato nel file {txt_file_path}")
+
+    except FileNotFoundError:
+        print(f"Il file {txt_file_path} non è stato trovato.")
+    except Exception as e:
+        print(f"Si è verificato un errore: {e}")
+
+
 class ObjectDetection:
 
     ##############################################################################################################################
@@ -78,6 +138,9 @@ class ObjectDetection:
 
         self.model = YOLO(os.path.join("models", os.environ.get('YOLO_MODEL'))).to(self.device)
         self.class_name_dict = self.model.names
+
+        # Crea un dizionario per mappare i nomi delle classi ai loro ID numerici
+        self.class_id_dict = {name: idx for idx, name in enumerate(self.model.names)}
 
     ##############################################################################################################################
     ##                                                                                                                          ##
@@ -133,8 +196,8 @@ class ObjectDetection:
             cv2.imwrite(os.path.join(matched_img_with_boxes_dir, unique_filename),
                         self.save_image_with_boxes(frame, xyxys, class_ids, confidences))
             # Salva le coordinate normalizzate
-            self.save_labels(xyxys, class_ids, confidences, frame,
-                             os.path.splitext(os.path.join(matched_labels_dir, unique_filename))[0] + ".txt")
+            self.save_label(xyxys, class_ids, confidences, frame, self.class_name_dict,
+                            os.path.splitext(os.path.join(matched_labels_dir, unique_filename))[0] + ".txt")
 
             # Salva il file labelstudio
             self.save_labelstudio(xyxys, class_ids, confidences, unique_filename,
@@ -155,7 +218,7 @@ class ObjectDetection:
         return frame
 
     @staticmethod
-    def save_labels(xyxys, class_ids, confidences, frame, label_file_path):
+    def save_label(xyxys, class_ids, confidences, frame, class_name_dict, label_file_path):
         labels = []
         image_height, image_width = frame.shape[:2]  # Ottiene le dimensioni dell'immagine
         for xyxy, class_id, confidence in zip(xyxys[0], class_ids[0], confidences[0]):
@@ -166,8 +229,11 @@ class ObjectDetection:
             norm_bbox_width = (x2 - x1) / image_width
             norm_bbox_height = (y2 - y1) / image_height
 
+            # Usa l'ID numerico invece del nome della classe
+            numeric_class_id = class_name_dict[class_id.item()]
+
             # Aggiungi l'etichetta normalizzata alla lista, includendo la confidence
-            label_str = (f"{class_id.item()} {confidence.item():.6f} {norm_center_x:.6f} {norm_center_y:.6f} "
+            label_str = (f"{numeric_class_id} {norm_center_x:.6f} {norm_center_y:.6f} "
                          f"{norm_bbox_width:.6f} {norm_bbox_height:.6f}\n")
             labels.append(label_str)
 
@@ -243,22 +309,33 @@ def user_response():
 
         if not unique_filename:
             raise ValueError('No unique_filename provided')
-        if user_response not in ['yes', 'no']:
-            raise ValueError("user_response deve essere 'yes' o 'no'")
 
-        # Qui puoi aggiungere la logica per processare la risposta dell'utente,
-        # come salvare la risposta nel database o eseguire altre azioni.
+        # Crea un'istanza di ObjectDetection per accedere ai nomi delle classi e ai relativi ID
+        od_instance = ObjectDetection()
 
-        # Esempio: print("Risposta ricevuta:", unique_filename, user_response)
+        # Controlla se la risposta dell'utente è un nome di classe valido
+        if user_response in ObjectDetection().class_name_dict.values():
+            # Converte il nome della classe in ID numerico e aggiorna il file di etichetta
+            numeric_class_id = od_instance.class_id_dict[user_response]
+            update_label(unique_filename, numeric_class_id)
+            move_files(unique_filename, "output", "need_validation")
+        elif user_response == 'yes':
+            # Sposta l'immagine nella cartella need_validation
+            move_files(unique_filename, "output", "need_validation")
+        elif user_response == 'no':
+            # Gestisci la risposta 'no' se necessario
+            pass
+        else:
+            raise ValueError("user_response deve essere 'yes', 'no', o un nome di classe valido")
 
         return jsonify({'message': 'Risposta ricevuta con successo'}), 200
 
     except ValueError as e:
-        app.logger.warning(f"Errore di valore: {e}")
+        app.logger.error(f"Errore di valore: {e}")
         return jsonify({'error': str(e)}), 400
     except Exception as e:
         app.logger.error(f"Errore generico: {e}")
-        return jsonify({'error': 'Si è verificato un errore durante la ricezione della risposta'}), 500
+        return jsonify({'error': 'Si è verificato un errore durante la ricezione della risposta utente'}), 500
 
 
 ##################################################################################################################################
