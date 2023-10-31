@@ -75,8 +75,12 @@ def move_files(unique_filename, source, dest):
     file_name_without_extension, _ = os.path.splitext(unique_filename)
 
     # Liste delle sottocartelle e delle loro corrispondenti estensioni
-    subfolders_extensions = {'matched_images': '.jpg', 'matched_images_with_boxes': '.jpg', 'matched_labels': '.txt',
-                             'matched_labelstudio': '.json'}
+    subfolders_extensions = {
+        'matched_images': '.jpg',
+        'matched_images_with_boxes': '.jpg',
+        'matched_labels': '.txt',
+        'matched_labelstudio': '.json'
+    }
 
     for subfolder, extension in subfolders_extensions.items():
         # Percorso completo sorgente e destinazione
@@ -310,23 +314,30 @@ def user_response():
         if not unique_filename:
             raise ValueError('No unique_filename provided')
 
-        # Crea un'istanza di ObjectDetection per accedere ai nomi delle classi e ai relativi ID
-        od_instance = ObjectDetection()
-
-        # Controlla se la risposta dell'utente è un nome di classe valido
-        if user_response in ObjectDetection().class_name_dict.values():
-            # Converte il nome della classe in ID numerico e aggiorna il file di etichetta
-            numeric_class_id = od_instance.class_id_dict[user_response]
-            update_label(unique_filename, numeric_class_id)
-            move_files(unique_filename, "output", "need_validation")
-        elif user_response == 'yes':
-            # Sposta l'immagine nella cartella need_validation
+        # Controlla se la risposta dell'utente è 'yes' o 'no'
+        if user_response == 'yes':
             move_files(unique_filename, "output", "need_validation")
         elif user_response == 'no':
-            # Gestisci la risposta 'no' se necessario
-            pass
+            move_files(unique_filename, "output", "wrong_detections")
+        elif user_response:
+            # Gestisce più modifiche
+            modifications = user_response.split(';')
+            for mod in modifications:
+                class_conf_pair = mod.split(',')
+                new_class = class_conf_pair[0].split(':')[1]  # Estrae il nuovo nome della classe
+                confidence = class_conf_pair[1].split(':')[1] # Estrae il valore di confidence se necessario
+
+                # Converte il nome della classe in ID numerico e aggiorna il file di etichetta
+                numeric_class_id = ObjectDetection().class_id_dict.get(new_class)
+                if numeric_class_id is None:
+                    raise ValueError(f"Classe {new_class} non valida")
+
+                update_label(unique_filename, numeric_class_id)
+
+            # Sposta il file dopo tutte le modifiche
+            move_files(unique_filename, "output", "need_validation")
         else:
-            raise ValueError("user_response deve essere 'yes', 'no', o un nome di classe valido")
+            raise ValueError("user_response deve essere 'yes', 'no', o una serie di modifiche di classe e confidence")
 
         return jsonify({'message': 'Risposta ricevuta con successo'}), 200
 
