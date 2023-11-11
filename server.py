@@ -34,7 +34,7 @@ import numpy as np
 from flask_cors import CORS
 from ultralytics import YOLO
 from dotenv import load_dotenv
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, send_file
 
 # Carica le variabili di configurazione dal file .env
 load_dotenv()
@@ -70,17 +70,33 @@ def plot_bboxes(results):
 ##                                                                                                                              ##
 ##################################################################################################################################
 
+def save_label(xyxys, class_ids, confidences, frame, label_file_path):
+    labels = []
+    image_height, image_width = frame.shape[:2]  # Ottiene le dimensioni dell'immagine
+
+    for xyxy, class_id, confidence in zip(xyxys[0], class_ids[0], confidences[0]):
+        x1, y1, x2, y2 = map(int, xyxy)
+
+        # Chiama la funzione di normalizzazione
+        norm_center_x, norm_center_y, norm_bbox_width, norm_bbox_height = normalize_label(x1, y1, x2, y2, image_width,
+                                                                                          image_height)
+
+        # Aggiungi l'etichetta normalizzata alla lista, includendo la confidence
+        label_str = (f"{class_id} {norm_center_x:.6f} {norm_center_y:.6f} "
+                     f"{norm_bbox_width:.6f} {norm_bbox_height:.6f}\n")
+        labels.append(label_str)
+
+    with open(label_file_path, "w") as f:
+        f.writelines(labels)
+
+
 def move_files(unique_filename, source, dest):
     # Estrai il nome del file senza estensione
     file_name_without_extension, _ = os.path.splitext(unique_filename)
 
     # Liste delle sottocartelle e delle loro corrispondenti estensioni
-    subfolders_extensions = {
-        'matched_images': '.jpg',
-        'matched_images_with_boxes': '.jpg',
-        'matched_labels': '.txt',
-        'matched_labelstudio': '.json'
-    }
+    subfolders_extensions = {'matched_images': '.jpg', 'matched_images_with_boxes': '.jpg', 'matched_labels': '.txt',
+                             'matched_labelstudio': '.json'}
 
     for subfolder, extension in subfolders_extensions.items():
         # Percorso completo sorgente e destinazione
@@ -98,33 +114,58 @@ def move_files(unique_filename, source, dest):
             app.logger.error(f"File non trovato: {source_path}")
 
 
-def update_label(unique_filename, new_class_id):
+def update_label(frame, detect_response, unique_filename, class_id_dict):
+    image_height, image_width, _ = frame.shape
     base_path = 'output/matched_labels'
-    file_name, _ = os.path.splitext(unique_filename)  # Rimuovi l'estensione esistente
+    file_name, _ = os.path.splitext(unique_filename)
     txt_file_path = os.path.join(base_path, f"{file_name}.txt")
 
     try:
-        # Leggi il contenuto del file
         with open(txt_file_path, 'r') as file:
             lines = file.readlines()
 
-        # Assicurati che ci sia almeno una linea da modificare
         if not lines:
             raise ValueError("Il file è vuoto o non contiene dati validi.")
 
-        # Sostituisci il primo valore (ID di classe) con il nuovo class_id
-        lines[0] = f"{new_class_id} " + " ".join(lines[0].split(" ")[1:])
+        file_bboxes = {}
+        for i, line in enumerate(lines):
+            parts = line.split()
+            if len(parts) >= 5:
+                # Arrotonda le coordinate già normalizzate alla seconda cifra decimale
+                bbox_key = tuple(round(float(x), 2) for x in parts[1:5])
+                file_bboxes[bbox_key] = i
 
-        # Scrivi le modifiche sul file
+        for detection in detect_response:
+            class_name = detection['class']
+            if class_name in class_id_dict:
+                # Normalizza e arrotonda i bounding box da detect_response
+                x1, y1, x2, y2 = detection['bbox']
+                norm_bbox = normalize_label(x1, y1, x2, y2, image_width, image_height)
+                norm_bbox_rounded = tuple(round(b, 2) for b in norm_bbox)
+
+                if norm_bbox_rounded in file_bboxes:
+                    line_index = file_bboxes[norm_bbox_rounded]
+                    parts = lines[line_index].split()
+                    parts[0] = str(class_id_dict[class_name])  # Aggiorna l'ID di classe
+                    lines[line_index] = " ".join(parts) + "\n"
+
         with open(txt_file_path, 'w') as file:
             file.writelines(lines)
 
-        print(f"Class ID aggiornato nel file {txt_file_path}")
+    except IOError as e:
+        app.logger.error(f"Errore di I/O: {e}")
+    except ValueError as e:
+        app.logger.error(f"Errore di valore: {e}")
 
-    except FileNotFoundError:
-        print(f"Il file {txt_file_path} non è stato trovato.")
-    except Exception as e:
-        print(f"Si è verificato un errore: {e}")
+
+def normalize_label(x1, y1, x2, y2, image_width, image_height):
+    # Formatta i valori con 6 cifre decimali
+    norm_center_x = "{:.6f}".format(((x1 + x2) / 2) / image_width)
+    norm_center_y = "{:.6f}".format(((y1 + y2) / 2) / image_height)
+    norm_bbox_width = "{:.6f}".format((x2 - x1) / image_width)
+    norm_bbox_height = "{:.6f}".format((y2 - y1) / image_height)
+
+    return float(norm_center_x), float(norm_center_y), float(norm_bbox_width), float(norm_bbox_height)
 
 
 class ObjectDetection:
@@ -142,9 +183,7 @@ class ObjectDetection:
 
         self.model = YOLO(os.path.join("models", os.environ.get('YOLO_MODEL'))).to(self.device)
         self.class_name_dict = self.model.names
-
-        # Crea un dizionario per mappare i nomi delle classi ai loro ID numerici
-        self.class_id_dict = {name: idx for idx, name in enumerate(self.model.names)}
+        self.class_id_dict = {v: k for k, v in self.class_name_dict.items()}
 
     ##############################################################################################################################
     ##                                                                                                                          ##
@@ -200,8 +239,8 @@ class ObjectDetection:
             cv2.imwrite(os.path.join(matched_img_with_boxes_dir, unique_filename),
                         self.save_image_with_boxes(frame, xyxys, class_ids, confidences))
             # Salva le coordinate normalizzate
-            self.save_label(xyxys, class_ids, confidences, frame, self.class_name_dict,
-                            os.path.splitext(os.path.join(matched_labels_dir, unique_filename))[0] + ".txt")
+            save_label(xyxys, class_ids, confidences, frame,
+                       os.path.splitext(os.path.join(matched_labels_dir, unique_filename))[0] + ".txt")
 
             # Salva il file labelstudio
             self.save_labelstudio(xyxys, class_ids, confidences, unique_filename,
@@ -220,29 +259,6 @@ class ObjectDetection:
             cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 255, 0), thickness=3)
             cv2.putText(frame, f"{label}: {confidence:.2f}", (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 1.5, (0, 255, 0), 2)
         return frame
-
-    @staticmethod
-    def save_label(xyxys, class_ids, confidences, frame, class_name_dict, label_file_path):
-        labels = []
-        image_height, image_width = frame.shape[:2]  # Ottiene le dimensioni dell'immagine
-        for xyxy, class_id, confidence in zip(xyxys[0], class_ids[0], confidences[0]):
-            x1, y1, x2, y2 = map(int, xyxy)
-            # Normalizza rispetto alle dimensioni dell'immagine
-            norm_center_x = ((x1 + x2) / 2) / image_width
-            norm_center_y = ((y1 + y2) / 2) / image_height
-            norm_bbox_width = (x2 - x1) / image_width
-            norm_bbox_height = (y2 - y1) / image_height
-
-            # Usa l'ID numerico invece del nome della classe
-            numeric_class_id = class_name_dict[class_id.item()]
-
-            # Aggiungi l'etichetta normalizzata alla lista, includendo la confidence
-            label_str = (f"{numeric_class_id} {norm_center_x:.6f} {norm_center_y:.6f} "
-                         f"{norm_bbox_width:.6f} {norm_bbox_height:.6f}\n")
-            labels.append(label_str)
-
-        with open(label_file_path, "w") as f:
-            f.writelines(labels)
 
     ##############################################################################################################################
     ##                                                                                                                          ##
@@ -278,6 +294,9 @@ class ObjectDetection:
 ##                                                                                                                              ##
 ##################################################################################################################################
 
+app.config['ALLOWED_CLASSES'] = list(ObjectDetection().class_name_dict.values())
+
+
 @app.route('/detect_objects', methods=['POST'])
 def detect_objects():
     try:
@@ -308,36 +327,25 @@ def user_response():
         if not data:
             raise ValueError('Nessun dato ricevuto')
 
-        unique_filename = data.get('unique_filename')
-        user_response = data.get('user_response')
+        unique_filename_with_ext = data.get('unique_filename')
+        detect_response = data.get('detectResponse')
+        user_response = data.get('userResponse')
+        is_modified = data.get('isModified', False)  # Default a False se non fornito
 
-        if not unique_filename:
-            raise ValueError('No unique_filename provided')
+        unique_filename, _ = os.path.splitext(unique_filename_with_ext)
+        frame = cv2.imread(os.path.join('output/matched_images/', unique_filename_with_ext))
+        if frame is None:
+            raise ValueError("Immagine non trovata o non leggibile")
 
-        # Controlla se la risposta dell'utente è 'yes' o 'no'
+        # Gestisci la logica in base a se le rilevazioni sono state modificate
         if user_response == 'yes':
-            move_files(unique_filename, "output", "need_validation")
-        elif user_response == 'no':
-            move_files(unique_filename, "output", "wrong_detections")
-        elif user_response:
-            # Gestisce più modifiche
-            modifications = user_response.split(';')
-            for mod in modifications:
-                class_conf_pair = mod.split(',')
-                new_class = class_conf_pair[0].split(':')[1]  # Estrae il nuovo nome della classe
-                confidence = class_conf_pair[1].split(':')[1] # Estrae il valore di confidence se necessario
+            if is_modified:
+                update_label(frame, detect_response, unique_filename, ObjectDetection().class_id_dict)
 
-                # Converte il nome della classe in ID numerico e aggiorna il file di etichetta
-                numeric_class_id = ObjectDetection().class_id_dict.get(new_class)
-                if numeric_class_id is None:
-                    raise ValueError(f"Classe {new_class} non valida")
-
-                update_label(unique_filename, numeric_class_id)
-
-            # Sposta il file dopo tutte le modifiche
+            # Poi esegui il move dei file
             move_files(unique_filename, "output", "need_validation")
         else:
-            raise ValueError("user_response deve essere 'yes', 'no', o una serie di modifiche di classe e confidence")
+            move_files(unique_filename, "output", "wrong_detections")
 
         return jsonify({'message': 'Risposta ricevuta con successo'}), 200
 
@@ -347,6 +355,24 @@ def user_response():
     except Exception as e:
         app.logger.error(f"Errore generico: {e}")
         return jsonify({'error': 'Si è verificato un errore durante la ricezione della risposta utente'}), 500
+
+
+@app.route('/get_image', methods=['POST'])
+def get_image():
+    # Ottieni il filename dal form data
+    unique_filename = request.form.get('unique-filename')
+
+    if not unique_filename:
+        return "Unique filename is missing", 400
+
+    # Percorso dell'immagine: cambia questo con il percorso effettivo dove le immagini sono salvate
+    image_path = os.path.join('output/matched_images_with_boxes', unique_filename)
+
+    if not os.path.exists(image_path):
+        return "File not found.", 404
+
+    # Invia il file come risposta
+    return send_file(image_path, mimetype='image/jpeg')
 
 
 ##################################################################################################################################

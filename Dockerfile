@@ -8,7 +8,7 @@ WORKDIR /home/server
 RUN mkdir -p /output/{matched_images,matched_images_with_boxes,matched_labels,matched_labelstudio,unmatched_images} \
     /need_validation/{matched_images,matched_images_with_boxes,matched_labels,matched_labelstudio,unmatched_images} \
     /validated/{matched_images,matched_images_with_boxes,matched_labels,matched_labelstudio,unmatched_images} \
-    /trash/{matched_images,matched_images_with_boxes,matched_labels,matched_labelstudio,unmatched_images} \
+    /wrong_detections/{matched_images,matched_images_with_boxes,matched_labels,matched_labelstudio,unmatched_images} \
     /ssl /models
 
 # Copia i file necessari nell'immagine
