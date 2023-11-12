@@ -5,8 +5,8 @@ FROM python:3.11-slim-buster
 WORKDIR /home/server
 
 # Definisci le variabili d'ambiente per l'utente e il gruppo (imposta valori predefiniti)
-ENV PUID: 1000
-ENV PGID: 1000
+ENV PUID=1000
+ENV PGID=1000
 
 # Crea un utente personalizzato con UID e GID specifici
 RUN groupadd -g $PGID customgroup && \
