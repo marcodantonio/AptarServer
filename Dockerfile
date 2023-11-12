@@ -13,7 +13,7 @@ RUN groupadd -g $PGID customgroup && \
     useradd -u $PUID -g $PGID -m customuser
 
 # Crea tutte le directory e sottocartelle necessarie
-RUN mkdir -p /output/{matched_images,matched_images_with_boxes,matched_labels,matched_labelstudio,unmatched_images} \
+RUN mkdir -p ./output/{matched_images,matched_images_with_boxes,matched_labels,matched_labelstudio,unmatched_images} \
     /need_validation/{matched_images,matched_images_with_boxes,matched_labels,matched_labelstudio,unmatched_images} \
     /validated/{matched_images,matched_images_with_boxes,matched_labels,matched_labelstudio,unmatched_images} \
     /wrong_detections/{matched_images,matched_images_with_boxes,matched_labels,matched_labelstudio,unmatched_images} \
