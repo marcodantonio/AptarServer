@@ -15,5 +15,5 @@ services:
       - FLASK_PORT=5000             # Porta del server Flask
       - SSL_CERT=cert.pem           # Nome del file del certificato SSL
       - SSL_KEY=key.pem             # Nome del file della chiave SSL
-      - USER_ID=1001                # UID dell'utente desiderato
-      - GROUP_ID=1001               # GID dell'utente desiderato
+      - PUID=1001                   # UID dell'utente desiderato
+      - GUID=1001                   # GID dell'utente desiderato
