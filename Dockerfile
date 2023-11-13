@@ -45,7 +45,7 @@ COPY --chown=server:server models/YoloV8m.pt ./models/
 
 # Copia l'entrypoint script nel container e rendilo eseguibile
 COPY entrypoint.sh /entrypoint.sh
-RUN chmod +x /entrypoint.sh
+RUN chown server:server /entrypoint.sh && chmod +x /entrypoint.sh
 
 ENTRYPOINT ["/entrypoint.sh"]
 CMD ["python", "server.py"]
