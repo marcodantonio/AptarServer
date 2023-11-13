@@ -38,7 +38,7 @@ RUN mkdir -p ./output/{matched_images,matched_images_with_boxes,matched_labels,m
 COPY models/YoloV8m.pt ./models/
 
 # Copia l'entrypoint script nel container e rendilo eseguibile
-COPY entrypoint.sh /entrypoint.sh
+COPY --chmod=755 entrypoint.sh /entrypoint.sh
 
 ENTRYPOINT ["/entrypoint.sh"]
 CMD ["python", "server.py"]
