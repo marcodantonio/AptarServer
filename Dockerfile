@@ -7,13 +7,21 @@ RUN apt-get update && \
 # Imposta la directory di lavoro
 WORKDIR /home/server
 
+# Crea tutte le directory e sottocartelle necessarie
+RUN mkdir -p ./output/{matched_images,matched_images_with_boxes,matched_labels,matched_labelstudio,unmatched_images} \
+    ./need_validation/{matched_images,matched_images_with_boxes,matched_labels,matched_labelstudio,unmatched_images} \
+    ./validated/{matched_images,matched_images_with_boxes,matched_labels,matched_labelstudio,unmatched_images} \
+    ./wrong_detections/{matched_images,matched_images_with_boxes,matched_labels,matched_labelstudio,unmatched_images} \
+    ./ssl ./models
+
+# Copia il modello YoloV8m
+COPY models/YoloV8m.pt ./models/
+
 # Copia il file requirements.txt e installa i requisiti come utente root
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt && \
-    pip install --upgrade pip
-
-# Pulizia per ridurre la dimensione dell'immagine
-RUN apt-get purge -y --auto-remove gcc python3-dev && \
+    pip install --upgrade pip \
+    apt-get purge -y --auto-remove gcc python3-dev && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
@@ -26,16 +34,6 @@ RUN groupadd -g $PGID server && \
 
 # Copia i file necessari nell'immagine
 COPY --chown=server:server server.py ./
-
-# Crea tutte le directory e sottocartelle necessarie
-RUN mkdir -p ./output/{matched_images,matched_images_with_boxes,matched_labels,matched_labelstudio,unmatched_images} \
-    ./need_validation/{matched_images,matched_images_with_boxes,matched_labels,matched_labelstudio,unmatched_images} \
-    ./validated/{matched_images,matched_images_with_boxes,matched_labels,matched_labelstudio,unmatched_images} \
-    ./wrong_detections/{matched_images,matched_images_with_boxes,matched_labels,matched_labelstudio,unmatched_images} \
-    ./ssl ./models
-
-# Copia il modello YoloV8m
-COPY models/YoloV8m.pt ./models/
 
 # Copia l'entrypoint script nel container e rendilo eseguibile
 COPY --chmod=755 entrypoint.sh /entrypoint.sh
