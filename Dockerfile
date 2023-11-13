@@ -1,5 +1,6 @@
 FROM python:3.11-slim-buster
 
+# Aggiorna e installa le dipendenze necessarie
 RUN apt-get update && \
     apt-get install -y --no-install-recommends gcc python3-dev libgl1-mesa-glx libglib2.0-0
 
@@ -44,8 +45,7 @@ RUN mkdir -p ./output/{matched_images,matched_images_with_boxes,matched_labels,m
 COPY --chown=server:server models/YoloV8m.pt ./models/
 
 # Copia l'entrypoint script nel container e rendilo eseguibile
-COPY entrypoint.sh /entrypoint.sh
-RUN chown server:server /entrypoint.sh && chmod +x /entrypoint.sh
+COPY --chmod=755 entrypoint.sh /entrypoint.sh
 
 ENTRYPOINT ["/entrypoint.sh"]
 CMD ["python", "server.py"]
