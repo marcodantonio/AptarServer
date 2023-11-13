@@ -2,7 +2,7 @@ FROM python:3.11-slim-buster
 
 # Aggiorna e installa le dipendenze necessarie
 RUN apt-get update && \
-    apt-get install -y --no-install-recommends gcc python3-dev libgl1-mesa-glx libglib2.0-0
+    apt-get install -y --no-install-recommends gcc python3-dev libgl1-mesa-glx libglib2.0-0 gosu
 
 # Imposta la directory di lavoro
 WORKDIR /home/server
@@ -21,31 +21,24 @@ RUN apt-get purge -y --auto-remove gcc python3-dev && \
 ENV PUID=1001
 ENV PGID=1001
 
-# Crea un utente personalizzato con UID e GID specifici
 RUN groupadd -g $PGID server && \
     useradd -u $PUID -g $PGID -m server
-
-# Cambia la proprietà della directory di lavoro all'utente server
-RUN chown -R server:server /home/server
 
 # Copia i file necessari nell'immagine
 COPY --chown=server:server server.py ./
 
-# Esegui come utente 'server'
-USER server
-
-# Crea tutte le directory e sottocartelle necessarie (come utente 'server')
+# Crea tutte le directory e sottocartelle necessarie
 RUN mkdir -p ./output/{matched_images,matched_images_with_boxes,matched_labels,matched_labelstudio,unmatched_images} \
     ./need_validation/{matched_images,matched_images_with_boxes,matched_labels,matched_labelstudio,unmatched_images} \
     ./validated/{matched_images,matched_images_with_boxes,matched_labels,matched_labelstudio,unmatched_images} \
     ./wrong_detections/{matched_images,matched_images_with_boxes,matched_labels,matched_labelstudio,unmatched_images} \
     ./ssl ./models
 
-# Copia il modello YoloV8m (come utente 'server')
-COPY --chown=server:server models/YoloV8m.pt ./models/
+# Copia il modello YoloV8m
+COPY models/YoloV8m.pt ./models/
 
 # Copia l'entrypoint script nel container e rendilo eseguibile
-COPY --chmod=755 entrypoint.sh /entrypoint.sh
+COPY entrypoint.sh /entrypoint.sh
 
 ENTRYPOINT ["/entrypoint.sh"]
 CMD ["python", "server.py"]
