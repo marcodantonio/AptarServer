@@ -20,8 +20,9 @@ COPY models/YoloV8m.pt ./models/
 # Copia il file requirements.txt e installa i requisiti come utente root
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt && \
-    pip install --upgrade pip \
-    apt-get purge -y --auto-remove gcc python3-dev && \
+    pip install --upgrade pip
+    
+RUN apt-get purge -y --auto-remove gcc python3-dev && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
