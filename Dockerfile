@@ -9,8 +9,11 @@ ENV PUID=1000
 ENV PGID=1000
 
 # Crea un utente personalizzato con UID e GID specifici
-RUN groupadd -g $PGID customgroup && \
-    useradd -u $PUID -g $PGID -m customuser
+RUN groupadd -g $PGID server && \
+    useradd -u $PUID -g $PGID -m server
+
+RUN chown -R server:server /home/server
+RUN chmod -R 755 /home/server
 
 # Crea tutte le directory e sottocartelle necessarie all'interno di /home/server
 RUN mkdir -p ./output/{matched_images,matched_images_with_boxes,matched_labels,matched_labelstudio,unmatched_images} \
@@ -23,9 +26,6 @@ RUN mkdir -p ./output/{matched_images,matched_images_with_boxes,matched_labels,m
 COPY requirements.txt server.py ./
 COPY models/YoloV8m.pt ./models/
 
-# Imposta il proprietario della directory di lavoro
-RUN chown -R customuser:customgroup /home/server
-
 # Installa le dipendenze necessarie e pulisci dopo l'uso per ridurre la dimensione dell'immagine
 RUN apt-get update && \
     apt-get install -y --no-install-recommends gcc python3-dev libgl1-mesa-glx libglib2.0-0 && \
@@ -36,7 +36,7 @@ RUN apt-get update && \
     rm -rf /var/lib/apt/lists/*
 
 # Passa all'utente personalizzato prima di eseguire il server Flask
-USER customuser
+USER server
 
 # Esegui il server Flask
 CMD ["python", "server.py"]
