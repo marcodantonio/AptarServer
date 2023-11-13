@@ -12,16 +12,16 @@ ENV PGID=1000
 RUN groupadd -g $PGID customgroup && \
     useradd -u $PUID -g $PGID -m customuser
 
-# Crea tutte le directory e sottocartelle necessarie
+# Crea tutte le directory e sottocartelle necessarie all'interno di /home/server
 RUN mkdir -p ./output/{matched_images,matched_images_with_boxes,matched_labels,matched_labelstudio,unmatched_images} \
-    /need_validation/{matched_images,matched_images_with_boxes,matched_labels,matched_labelstudio,unmatched_images} \
-    /validated/{matched_images,matched_images_with_boxes,matched_labels,matched_labelstudio,unmatched_images} \
-    /wrong_detections/{matched_images,matched_images_with_boxes,matched_labels,matched_labelstudio,unmatched_images} \
-    /ssl /models
+    ./need_validation/{matched_images,matched_images_with_boxes,matched_labels,matched_labelstudio,unmatched_images} \
+    ./validated/{matched_images,matched_images_with_boxes,matched_labels,matched_labelstudio,unmatched_images} \
+    ./wrong_detections/{matched_images,matched_images_with_boxes,matched_labels,matched_labelstudio,unmatched_images} \
+    ./ssl ./models
 
 # Copia i file necessari nell'immagine
 COPY requirements.txt server.py ./
-COPY models/YoloV8m.pt /models/
+COPY models/YoloV8m.pt ./models/
 
 # Imposta il proprietario della directory di lavoro
 RUN chown -R customuser:customgroup /home/server
