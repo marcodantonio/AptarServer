@@ -82,7 +82,7 @@ def save_label(xyxys, class_ids, confidences, frame, label_file_path):
                                                                                           image_height)
 
         # Aggiungi l'etichetta normalizzata alla lista, includendo la confidence
-        label_str = (f"{class_id} {norm_center_x:.6f} {norm_center_y:.6f} "
+        label_str = (f"{int(class_id)} {norm_center_x:.6f} {norm_center_y:.6f} "
                      f"{norm_bbox_width:.6f} {norm_bbox_height:.6f}\n")
         labels.append(label_str)
 

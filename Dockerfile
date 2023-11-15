@@ -17,6 +17,9 @@ RUN mkdir -p ./output/{matched_images,matched_images_with_boxes,matched_labels,m
 # Copia il modello YoloV8m
 COPY models/YoloV8m.pt ./models/
 
+# Copia i file necessari nell'immagine
+COPY server.py ./
+
 # Copia il file requirements.txt e installa i requisiti come utente root
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt && \
@@ -32,9 +35,6 @@ ENV PGID=1001
 
 RUN groupadd -g $PGID server && \
     useradd -u $PUID -g $PGID -m server
-
-# Copia i file necessari nell'immagine
-COPY --chown=server:server server.py ./
 
 # Copia l'entrypoint script nel container e rendilo eseguibile
 COPY --chmod=755 entrypoint.sh /entrypoint.sh
