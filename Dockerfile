@@ -15,7 +15,7 @@ RUN mkdir -p ./output/{matched_images,matched_images_with_boxes,matched_labels,m
     ./ssl ./models
 
 # Copia il modello YoloV8m
-COPY models/YoloV8m.pt ./models/
+COPY models/Aptar-YoloV8.pt ./models/
 
 # Copia i file necessari nell'immagine
 COPY server.py ./
